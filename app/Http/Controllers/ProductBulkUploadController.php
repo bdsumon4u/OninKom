@@ -71,8 +71,10 @@ class ProductBulkUploadController extends Controller
     public function bulk_upload(Request $request)
     {
         if($request->hasFile('bulk_file')){
-            $import = new ProductsImport;
-            Excel::import($import, request()->file('bulk_file'));
+            $this->oninkari(function () use ($request) {
+                $import = new ProductsImport;
+                Excel::import($import, request()->file('bulk_file'));
+            });
         }
         
         return back();

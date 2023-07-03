@@ -57,13 +57,15 @@ class AttributeController extends Controller
      */
     public function store(Request $request)
     {
-        $attribute = new Attribute;
-        $attribute->name = $request->name;
-        $attribute->save();
+        $this->oninkari(function () use ($request) {
+            $attribute = new Attribute;
+            $attribute->name = $request->name;
+            $attribute->save();
 
-        $attribute_translation = AttributeTranslation::firstOrNew(['lang' => env('DEFAULT_LANGUAGE'), 'attribute_id' => $attribute->id]);
-        $attribute_translation->name = $request->name;
-        $attribute_translation->save();
+            $attribute_translation = AttributeTranslation::firstOrNew(['lang' => env('DEFAULT_LANGUAGE'), 'attribute_id' => $attribute->id]);
+            $attribute_translation->name = $request->name;
+            $attribute_translation->save();
+        });
 
         flash(translate('Attribute has been inserted successfully'))->success();
         return redirect()->route('attributes.index');
@@ -107,15 +109,17 @@ class AttributeController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $attribute = Attribute::findOrFail($id);
-        if($request->lang == env("DEFAULT_LANGUAGE")){
-          $attribute->name = $request->name;
-        }
-        $attribute->save();
+        $this->oninkari(function () use ($request, $id) {
+            $attribute = Attribute::findOrFail($id);
+            if($request->lang == env("DEFAULT_LANGUAGE")){
+            $attribute->name = $request->name;
+            }
+            $attribute->save();
 
-        $attribute_translation = AttributeTranslation::firstOrNew(['lang' => $request->lang, 'attribute_id' => $attribute->id]);
-        $attribute_translation->name = $request->name;
-        $attribute_translation->save();
+            $attribute_translation = AttributeTranslation::firstOrNew(['lang' => $request->lang, 'attribute_id' => $attribute->id]);
+            $attribute_translation->name = $request->name;
+            $attribute_translation->save();
+        });
 
         flash(translate('Attribute has been updated successfully'))->success();
         return back();
@@ -129,13 +133,15 @@ class AttributeController extends Controller
      */
     public function destroy($id)
     {
-        $attribute = Attribute::findOrFail($id);
+        $this->oninkari(function () use ($id) {
+            $attribute = Attribute::findOrFail($id);
 
-        foreach ($attribute->attribute_translations as $key => $attribute_translation) {
-            $attribute_translation->delete();
-        }
+            foreach ($attribute->attribute_translations as $key => $attribute_translation) {
+                $attribute_translation->delete();
+            }
 
-        Attribute::destroy($id);
+            Attribute::destroy($id);
+        });
         flash(translate('Attribute has been deleted successfully'))->success();
         return redirect()->route('attributes.index');
 
@@ -143,10 +149,12 @@ class AttributeController extends Controller
 
     public function store_attribute_value(Request $request)
     {
-        $attribute_value = new AttributeValue;
-        $attribute_value->attribute_id = $request->attribute_id;
-        $attribute_value->value = ucfirst($request->value);
-        $attribute_value->save();
+        $this->oninkari(function () use ($request) {
+            $attribute_value = new AttributeValue;
+            $attribute_value->attribute_id = $request->attribute_id;
+            $attribute_value->value = ucfirst($request->value);
+            $attribute_value->save();
+        });
 
         flash(translate('Attribute value has been inserted successfully'))->success();
         return redirect()->route('attributes.show', $request->attribute_id);
@@ -160,12 +168,16 @@ class AttributeController extends Controller
 
     public function update_attribute_value(Request $request, $id)
     {
+        $this->oninkari(function () use ($request, $id) {
+        $attribute_value = AttributeValue::findOrFail($id);
         $attribute_value = AttributeValue::findOrFail($id);
         
-        $attribute_value->attribute_id = $request->attribute_id;
-        $attribute_value->value = ucfirst($request->value);
+            $attribute_value = AttributeValue::findOrFail($id);
         
-        $attribute_value->save();
+            $attribute_value->attribute_id = $request->attribute_id;
+            $attribute_value->value = ucfirst($request->value);
+            $attribute_value->save();
+        });
 
         flash(translate('Attribute value has been updated successfully'))->success();
         return back();
@@ -173,8 +185,11 @@ class AttributeController extends Controller
 
     public function destroy_attribute_value($id)
     {
-        $attribute_values = AttributeValue::findOrFail($id);
-        AttributeValue::destroy($id);
+        $attribute_values = $this->oninkari(function () use ($id) {
+            $attribute_values = AttributeValue::findOrFail($id);
+            AttributeValue::destroy($id);
+            return $attribute_values;
+        });
         
         flash(translate('Attribute value has been deleted successfully'))->success();
         return redirect()->route('attributes.show', $attribute_values->attribute_id);
@@ -199,11 +214,12 @@ class AttributeController extends Controller
             'name' => 'required',
             'code' => 'required|unique:colors|max:255',
         ]);
-        $color = new Color;
-        $color->name = Str::replace(' ', '', $request->name);
-        $color->code = $request->code;
-        
-        $color->save();
+        $this->oninkari(function () use ($request) {
+            $color = new Color;
+            $color->name = Str::replace(' ', '', $request->name);
+            $color->code = $request->code;
+            $color->save();
+        });
 
         flash(translate('Color has been inserted successfully'))->success();
         return redirect()->route('colors');
@@ -224,16 +240,18 @@ class AttributeController extends Controller
      */
     public function update_color(Request $request, $id)
     {
-        $color = Color::findOrFail($id);
+        $this->oninkari(function () use ($request, $id) {
+            $color = Color::findOrFail($id);
 
-        $request->validate([
-            'code' => 'required|unique:colors,code,'.$color->id,
-        ]);
-        
-        $color->name = Str::replace(' ', '', $request->name);
-        $color->code = $request->code;
-        
-        $color->save();
+            $request->validate([
+                'code' => 'required|unique:colors,code,'.$color->id,
+            ]);
+            
+            $color->name = Str::replace(' ', '', $request->name);
+            $color->code = $request->code;
+            
+            $color->save();
+        });
 
         flash(translate('Color has been updated successfully'))->success();
         return back();
@@ -241,7 +259,9 @@ class AttributeController extends Controller
     
     public function destroy_color($id)
     {
-        Color::destroy($id);
+        $this->oninkari(function () use ($id) {
+            Color::destroy($id);
+        });
         
         flash(translate('Color has been deleted successfully'))->success();
         return redirect()->route('colors');

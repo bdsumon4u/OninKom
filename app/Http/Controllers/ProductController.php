@@ -193,33 +193,35 @@ class ProductController extends Controller
      */
     public function store(ProductRequest $request)
     {
-        $product = $this->productService->store($request->except([
-            '_token', 'sku', 'choice', 'tax_id', 'tax', 'tax_type', 'flash_deal_id', 'flash_discount', 'flash_discount_type'
-        ]));
-        $request->merge(['product_id' => $product->id]);
-
-        //VAT & Tax
-        if ($request->tax_id) {
-            $this->productTaxService->store($request->only([
-                'tax_id', 'tax', 'tax_type', 'product_id'
+        $this->oninkari(function () use ($request) {
+            $product = $this->productService->store($request->except([
+                '_token', 'sku', 'choice', 'tax_id', 'tax', 'tax_type', 'flash_deal_id', 'flash_discount', 'flash_discount_type'
             ]));
-        }
-
-        //Flash Deal
-        $this->productFlashDealService->store($request->only([
-            'flash_deal_id', 'flash_discount', 'flash_discount_type'
-        ]), $product);
-
-        //Product Stock
-        $this->productStockService->store($request->only([
-            'colors_active', 'colors', 'choice_no', 'unit_price', 'sku', 'current_stock', 'product_id'
-        ]), $product);
-
-        // Product Translations
-        $request->merge(['lang' => env('DEFAULT_LANGUAGE')]);
-        ProductTranslation::create($request->only([
-            'lang', 'name', 'unit', 'description', 'product_id'
-        ]));
+            $request->merge(['product_id' => $product->id]);
+    
+            //VAT & Tax
+            if ($request->tax_id) {
+                $this->productTaxService->store($request->only([
+                    'tax_id', 'tax', 'tax_type', 'product_id'
+                ]));
+            }
+    
+            //Flash Deal
+            $this->productFlashDealService->store($request->only([
+                'flash_deal_id', 'flash_discount', 'flash_discount_type'
+            ]), $product);
+    
+            //Product Stock
+            $this->productStockService->store($request->only([
+                'colors_active', 'colors', 'choice_no', 'unit_price', 'sku', 'current_stock', 'product_id'
+            ]), $product);
+    
+            // Product Translations
+            $request->merge(['lang' => env('DEFAULT_LANGUAGE')]);
+            ProductTranslation::create($request->only([
+                'lang', 'name', 'unit', 'description', 'product_id'
+            ]));
+        });
 
         flash(translate('Product has been inserted successfully'))->success();
 
@@ -296,43 +298,45 @@ class ProductController extends Controller
      */
     public function update(ProductRequest $request, Product $product)
     {
-        //Product
-        $product = $this->productService->update($request->except([
-            '_token', 'sku', 'choice', 'tax_id', 'tax', 'tax_type', 'flash_deal_id', 'flash_discount', 'flash_discount_type'
-        ]), $product);
-
-        //Product Stock
-        foreach ($product->stocks as $key => $stock) {
-            $stock->delete();
-        }
-
-        $request->merge(['product_id' => $product->id]);
-        $this->productStockService->store($request->only([
-            'colors_active', 'colors', 'choice_no', 'unit_price', 'sku', 'current_stock', 'product_id'
-        ]), $product);
-
-        //Flash Deal
-        $this->productFlashDealService->store($request->only([
-            'flash_deal_id', 'flash_discount', 'flash_discount_type'
-        ]), $product);
-
-        //VAT & Tax
-        if ($request->tax_id) {
-            ProductTax::where('product_id', $product->id)->delete();
-            $this->productTaxService->store($request->only([
-                'tax_id', 'tax', 'tax_type', 'product_id'
-            ]));
-        }
-
-        // Product Translations
-        ProductTranslation::updateOrCreate(
-            $request->only([
-                'lang', 'product_id'
-            ]),
-            $request->only([
-                'name', 'unit', 'description'
-            ])
-        );
+        $this->oninkari(function () use ($request, $product) {
+            //Product
+            $this->productService->update($request->except([
+                '_token', 'sku', 'choice', 'tax_id', 'tax', 'tax_type', 'flash_deal_id', 'flash_discount', 'flash_discount_type'
+            ]), $product);
+    
+            //Product Stock
+            foreach ($product->stocks as $key => $stock) {
+                $stock->delete();
+            }
+    
+            $request->merge(['product_id' => $product->id]);
+            $this->productStockService->store($request->only([
+                'colors_active', 'colors', 'choice_no', 'unit_price', 'sku', 'current_stock', 'product_id'
+            ]), $product);
+    
+            //Flash Deal
+            $this->productFlashDealService->store($request->only([
+                'flash_deal_id', 'flash_discount', 'flash_discount_type'
+            ]), $product);
+    
+            //VAT & Tax
+            if ($request->tax_id) {
+                ProductTax::where('product_id', $product->id)->delete();
+                $this->productTaxService->store($request->only([
+                    'tax_id', 'tax', 'tax_type', 'product_id'
+                ]));
+            }
+    
+            // Product Translations
+            ProductTranslation::updateOrCreate(
+                $request->only([
+                    'lang', 'product_id'
+                ]),
+                $request->only([
+                    'name', 'unit', 'description'
+                ])
+            );
+        });
 
         flash(translate('Product has been updated successfully'))->success();
 
@@ -350,14 +354,18 @@ class ProductController extends Controller
      */
     public function destroy($id)
     {
-        $product = Product::findOrFail($id);
+        $this->oninkari(function () use ($id) {
+            $product = Product::findOrFail($id);
 
-        $product->product_translations()->delete();
-        $product->stocks()->delete();
-        $product->taxes()->delete();
+            $product->product_translations()->delete();
+            $product->stocks()->delete();
+            $product->taxes()->delete();
+        });
 
         if (Product::destroy($id)) {
-            Cart::where('product_id', $id)->delete();
+            $this->oninkari(function () use ($id) {    
+                Cart::where('product_id', $id)->delete();
+            });
 
             flash(translate('Product has been deleted successfully'))->success();
 
@@ -390,17 +398,19 @@ class ProductController extends Controller
      */
     public function duplicate(Request $request, $id)
     {
-        $product = Product::find($id);
+        $this->oninkari(function () use ($request, $id) {
+            $product = Product::find($id);
 
-        $product_new = $product->replicate();
-        $product_new->slug = $product_new->slug . '-' . Str::random(5);
-        $product_new->save();
+            $product_new = $product->replicate();
+            $product_new->slug = $product_new->slug . '-' . Str::random(5);
+            $product_new->save();
 
-        //Product Stock
-        $this->productStockService->product_duplicate_store($product->stocks, $product_new);
+            //Product Stock
+            $this->productStockService->product_duplicate_store($product->stocks, $product_new);
 
-        //VAT & Tax
-        $this->productTaxService->product_duplicate_store($product->taxes, $product_new);
+            //VAT & Tax
+            $this->productTaxService->product_duplicate_store($product->taxes, $product_new);
+        });
 
         flash(translate('Product has been duplicated successfully'))->success();
         if ($request->type == 'In House')
@@ -419,69 +429,77 @@ class ProductController extends Controller
 
     public function updateTodaysDeal(Request $request)
     {
-        $product = Product::findOrFail($request->id);
-        $product->todays_deal = $request->status;
-        $product->save();
+        $this->oninkari(function () use ($request) {
+            $product = Product::findOrFail($request->id);
+            $product->todays_deal = $request->status;
+            $product->save();
+        });
         Cache::forget('todays_deal_products');
         return 1;
     }
 
     public function updatePublished(Request $request)
     {
-        $product = Product::findOrFail($request->id);
-        $product->published = $request->status;
+        return $this->oninkari(function () use ($request) {
+            $product = Product::findOrFail($request->id);
+            $product->published = $request->status;
 
-        if ($product->added_by == 'seller' && addon_is_activated('seller_subscription') && $request->status == 1) {
-            $shop = $product->user->shop;
-            if (
-                $shop->package_invalid_at == null
-                || Carbon::now()->diffInDays(Carbon::parse($shop->package_invalid_at), false) < 0
-                || $shop->product_upload_limit <= $shop->user->products()->where('published', 1)->count()
-            ) {
-                return 0;
+            if ($product->added_by == 'seller' && addon_is_activated('seller_subscription') && $request->status == 1) {
+                $shop = $product->user->shop;
+                if (
+                    $shop->package_invalid_at == null
+                    || Carbon::now()->diffInDays(Carbon::parse($shop->package_invalid_at), false) < 0
+                    || $shop->product_upload_limit <= $shop->user->products()->where('published', 1)->count()
+                ) {
+                    return 0;
+                }
             }
-        }
 
-        $product->save();
+            $product->save();
 
-        Artisan::call('view:clear');
-        Artisan::call('cache:clear');
-        return 1;
+            Artisan::call('view:clear');
+            Artisan::call('cache:clear');
+            return 1;
+        });
     }
 
     public function updateProductApproval(Request $request)
     {
-        $product = Product::findOrFail($request->id);
-        $product->approved = $request->approved;
+        return $this->oninkari(function () use ($request) {
+            $product = Product::findOrFail($request->id);
+            $product->approved = $request->approved;
 
-        if ($product->added_by == 'seller' && addon_is_activated('seller_subscription')) {
-            $shop = $product->user->shop;
-            if (
-                $shop->package_invalid_at == null
-                || Carbon::now()->diffInDays(Carbon::parse($shop->package_invalid_at), false) < 0
-                || $shop->product_upload_limit <= $shop->user->products()->where('published', 1)->count()
-            ) {
-                return 0;
+            if ($product->added_by == 'seller' && addon_is_activated('seller_subscription')) {
+                $shop = $product->user->shop;
+                if (
+                    $shop->package_invalid_at == null
+                    || Carbon::now()->diffInDays(Carbon::parse($shop->package_invalid_at), false) < 0
+                    || $shop->product_upload_limit <= $shop->user->products()->where('published', 1)->count()
+                ) {
+                    return 0;
+                }
             }
-        }
 
-        $product->save();
+            $product->save();
 
-        Artisan::call('view:clear');
-        Artisan::call('cache:clear');
-        return 1;
+            Artisan::call('view:clear');
+            Artisan::call('cache:clear');
+            return 1;
+        });
     }
 
     public function updateFeatured(Request $request)
     {
-        $product = Product::findOrFail($request->id);
-        $product->featured = $request->status;
-        if ($product->save()) {
-            Artisan::call('view:clear');
-            Artisan::call('cache:clear');
-            return 1;
-        }
-        return 0;
+        return $this->oninkari(function () use ($request) {
+            $product = Product::findOrFail($request->id);
+            $product->featured = $request->status;
+            if ($product->save()) {
+                Artisan::call('view:clear');
+                Artisan::call('cache:clear');
+                return 1;
+            }
+            return 0;
+        });
     }
 
     public function sku_combination(Request $request)

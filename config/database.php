@@ -15,6 +15,8 @@ return [
 
     'default' => env('DB_CONNECTION', 'mysql'),
 
+    'paikaridor' => env('DB_PAIKARIDOR', 'forge'),
+
     /*
     |--------------------------------------------------------------------------
     | Database Connections
